@@ -15,7 +15,7 @@ namespace TahmKench
         static Orbwalking.Orbwalker orbwalker;
         static SkillshotDetector detector;
 
-        static Spell q = new Spell(SpellSlot.Q);
+        static Spell q = new Spell(SpellSlot.Q, 800);
         static Spell w = new Spell(SpellSlot.W, 300) { Delay = 250 };
 
         static void Main(string[] args)
@@ -37,6 +37,7 @@ namespace TahmKench
             config.AddItem(new MenuItem("shieldTargeted", "Shield targeted skills")).SetValue(true);
             config.AddItem(new MenuItem("shieldifXHpAmount", "...if ally looses X % of maxHP")).SetValue(new Slider(20));
             config.AddItem(new MenuItem("shieldifIsUltimate", "..if its an ult")).SetValue(true);
+            config.AddItem(new MenuItem("eatCCdAllies", "W cc'ed allies")).SetValue(true);
             config.AddToMainMenu();
 
             detector = new SkillshotDetector();
@@ -76,6 +77,9 @@ namespace TahmKench
         static void Game_OnUpdate(EventArgs args)
         {
             SkillshotsResult.DetectedSkillShots.RemoveAll(skillshot => !skillshot.IsActive());
+
+            CheckCCdAlly();
+
             int minDangerLvl = config.Item("skillDangerLvl").GetValue<Slider>().Value;
 
             if (config.Item("useQ").GetValue<bool>() && q.IsReady() && orbwalker.ActiveMode == Orbwalking.OrbwalkingMode.Combo)
@@ -98,22 +102,15 @@ namespace TahmKench
                     x.Distance(ObjectManager.Player.Position) <= w.Range).
                     OrderBy(x => x.CombatType == GameObjectCombatType.Ranged))
                 {
-                    foreach (var skill in skillshots.Where(x => x.SpellData.Type != SkillShotType.SkillshotCircle))
+                    foreach (var skill in skillshots)
                     {
-                        var flyTime = skill.MissilePosition.Distance(ally.Position) /
-                            (skill.SpellData.MissileSpeed / 1000);
+                        var hitTime = skill.StartTick + skill.SpellData.Delay + skill.SpellData.ExtraDuration +
+                                1000 * (skill.Start.Distance(ally.Position) / skill.SpellData.MissileSpeed);
 
-                        if (skill.IsAboutToHit((int)flyTime, ally) && skill.SpellData.DangerValue >= minDangerLvl &&
-                            flyTime > w.Delay)
-                        {
-                            w.Cast(ally);
-                            break;
-                        }
-                    }
+                        var timeLeft = hitTime - Environment.TickCount;
 
-                    foreach (var skill in skillshots.Where(x => x.SpellData.Type == SkillShotType.SkillshotCircle))
-                    {
-                        if (skill.IsAboutToHit(skill.SpellData.Delay, ally) && skill.SpellData.DangerValue >= minDangerLvl)
+                        if (skill.IsAboutToHit((int)timeLeft, ally) && skill.SpellData.DangerValue >= minDangerLvl &&
+                            timeLeft > w.Delay)
                         {
                             w.Cast(ally);
                             break;
@@ -122,6 +119,13 @@ namespace TahmKench
 
                 }
             }
+        }
+
+        private static void CheckCCdAlly()
+        {
+            if (SkillshotsResult.CCdAlly != null && w.IsReady() && config.Item("eatCCdAllies").GetValue<bool>())
+                w.Cast(SkillshotsResult.CCdAlly);
+
         }
     }
 }
