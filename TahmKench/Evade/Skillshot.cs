@@ -508,7 +508,7 @@ namespace Evade
                 SpellData.Type == SkillShotType.SkillshotArc)
             {
                 //Outside the skillshot
-                if (IsSafe(ObjectManager.Player.Position.To2D()))
+                if (IsSafe(unit.Position.To2D()))
                 {
                     //No intersections -> Safe
                     if (allIntersections.Count == 0)
@@ -533,8 +533,7 @@ namespace Evade
                             return
                                 new SafePathResult(
                                     (End.Distance(missilePositionOnIntersection) + 50 <=
-                                     End.Distance(enterIntersectionProjection)) &&
-                                    ObjectManager.Player.MoveSpeed < SpellData.MissileSpeed, allIntersections[0]);
+                                     End.Distance(enterIntersectionProjection)) && speed < SpellData.MissileSpeed, allIntersections[0]);
                         }
 
 
@@ -578,7 +577,7 @@ namespace Evade
             }
 
 
-            if (IsSafe(ObjectManager.Player.Position.To2D()))
+            if (IsSafe(unit.Position.To2D()))
             {
                 if (allIntersections.Count == 0)
                 {
