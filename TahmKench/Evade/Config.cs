@@ -95,7 +95,14 @@ namespace Evade
             EvadeMenu.AddSubMenu(collision);
 
             EvadeMenu.AddItem(
-                new MenuItem("OnlyDangerous", "Dodge only for dangerous").SetValue(new KeyBind(32, KeyBindType.Press))).Permashow();
+                new MenuItem("OnlyDangerous", "Dodge only for dangerous").SetValue(true));
+
+            var heroes = new Menu("Heroes", "heroMenu");
+            foreach (var ally in HeroManager.Allies.Where(x => !x.IsMe))
+            {
+                heroes.AddItem(new MenuItem(ally.Name, ally.ChampionName).SetValue(true));
+            }
+            EvadeMenu.AddSubMenu(heroes);
 
             EvadeMenu.AddToMainMenu();
         }

@@ -14,3 +14,4 @@ C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\b
 C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\LeagueSharp.Data.pdb
 C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\Debug\TahmKench.exe
 C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\Debug\TahmKench.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\Debug\TahmKench.csprojResolveAssemblyReference.cache

@@ -123,7 +123,7 @@ namespace TahmKench
             {
                 var skillshots = DetectedSkillshots;
 
-                foreach (var ally in HeroManager.Allies.Where(x => !x.IsDead && !x.IsMe &&
+                foreach (var ally in HeroManager.Allies.Where(x => !x.IsDead && !x.IsMe && Evade.Config.EvadeMenu.Item(x.Name).GetValue<bool>() &&
                     x.Distance(ObjectManager.Player.Position) <= w.Range).OrderBy(x => x.Health))
                 {
                     foreach (var skill in skillshots.Where(x => x.Evade()))
@@ -134,7 +134,7 @@ namespace TahmKench
                         var timeLeft = hitTime - Utils.TickCount;
 
                         if (!skill.IsSafePath(ally.GetWaypoints(), ally, Game.Ping/2).IsSafe && timeLeft > w.Delay && 
-                            timeLeft < w.Delay+Game.Ping*2)
+                            timeLeft < w.Delay+300)
                         {
                             w.Cast(ally);
                             break;
