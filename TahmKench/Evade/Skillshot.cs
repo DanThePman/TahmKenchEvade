@@ -1,4 +1,4 @@
-﻿﻿// Copyright 2014 - 2015 Esk0r
+﻿// Copyright 2014 - 2014 Esk0r
 // Skillshot.cs is part of Evade.
 // 
 // Evade is free software: you can redistribute it and/or modify
@@ -14,14 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Evade. If not, see <http://www.gnu.org/licenses/>.
 
+#region
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using LeagueSharp;
 using LeagueSharp.Common;
 using SharpDX;
+using Color = System.Drawing.Color;
+using GamePath = System.Collections.Generic.List<SharpDX.Vector2>;
 
-namespace TahmKench
+#endregion
+
+namespace Evade
 {
     public enum SkillShotType
     {
@@ -30,13 +36,14 @@ namespace TahmKench
         SkillshotMissileLine,
         SkillshotCone,
         SkillshotMissileCone,
-        SkillshotRing
+        SkillshotRing,
+        SkillshotArc,
     }
 
     public enum DetectionType
     {
         RecvPacket,
-        ProcessSpell
+        ProcessSpell,
     }
 
     public struct SafePathResult
@@ -46,59 +53,64 @@ namespace TahmKench
 
         public SafePathResult(bool isSafe, FoundIntersection intersection)
         {
-            Intersection = intersection;
             IsSafe = isSafe;
+            Intersection = intersection;
         }
     }
 
     public struct FoundIntersection
     {
-        private const int GridSize = 10;
-        public Vector2 ComingFromVector2;
+        public Vector2 ComingFrom;
         public float Distance;
-        public bool IsValid;
-        public Vector2 PointVector2;
+        public Vector2 Point;
         public int Time;
+        public bool Valid;
 
-        public FoundIntersection(float distance, int time, Vector2 pointVector2, Vector2 comingFromVector2)
+        public FoundIntersection(float distance, int time, Vector2 point, Vector2 comingFrom)
         {
             Distance = distance;
-            ComingFromVector2 = comingFromVector2;
-            IsValid = pointVector2.IsValid();
-            PointVector2 = pointVector2 + GridSize * (ComingFromVector2 - pointVector2).Normalized();
+            ComingFrom = comingFrom;
+            Valid = (point.X != 0) && (point.Y != 0);
+            Point = point + Config.GridSize * (ComingFrom - point).Normalized();
             Time = time;
         }
     }
 
+
     public class Skillshot
     {
-        private const int ExtraEvadeDistance = 15;
-        private Vector2 _collisionEnd;
-        private int _lastCollisionCalc;
         public Geometry.Circle Circle;
         public DetectionType DetectionType;
         public Vector2 Direction;
         public Geometry.Polygon DrawingPolygon;
+
+        public Vector2 OriginalEnd;
         public Vector2 End;
+
         public bool ForceDisabled;
         public Vector2 MissilePosition;
         public Geometry.Polygon Polygon;
         public Geometry.Rectangle Rectangle;
         public Geometry.Ring Ring;
+        public Geometry.Arc Arc;
         public Geometry.Sector Sector;
+
         public SpellData SpellData;
         public Vector2 Start;
         public int StartTick;
-        public Obj_AI_Base Target;
+        private int _helperTick;
+
+        private bool _cachedValue;
+        private int _cachedValueTick;
+        private Vector2 _collisionEnd;
+        private int _lastCollisionCalc;
 
         public Skillshot(DetectionType detectionType,
             SpellData spellData,
             int startT,
             Vector2 start,
             Vector2 end,
-            Obj_AI_Base unit,
-            Obj_AI_Base target = null
-            )
+            Obj_AI_Base unit)
         {
             DetectionType = detectionType;
             SpellData = spellData;
@@ -107,7 +119,7 @@ namespace TahmKench
             End = end;
             MissilePosition = start;
             Direction = (end - start).Normalized();
-            Target = target;
+
             Unit = unit;
 
             //Create the spatial object for each type of skillshot.
@@ -128,6 +140,9 @@ namespace TahmKench
                     break;
                 case SkillShotType.SkillshotRing:
                     Ring = new Geometry.Ring(CollisionEnd, spellData.Radius, spellData.RingRadius);
+                    break;
+                case SkillShotType.SkillshotArc:
+                    Arc = new Geometry.Arc(start, end, Config.SkillShotsExtraRadius + (int)ObjectManager.Player.BoundingRadius);
                     break;
             }
 
@@ -165,36 +180,67 @@ namespace TahmKench
         }
 
         public Geometry.Polygon EvadePolygon { get; set; }
+        public Geometry.Polygon PathFindingPolygon { get; set; }
+        public Geometry.Polygon PathFindingInnerPolygon { get; set; }
+
         public Obj_AI_Base Unit { get; set; }
 
         /// <summary>
-        ///     Returns if the skillshot has expired.
+        /// Returns the value from this skillshot menu.
+        /// </summary>
+        public T GetValue<T>(string name)
+        {
+            return Config.EvadeMenu.Item(name + SpellData.MenuItemName).GetValue<T>();
+        }
+
+        /// <summary>
+        /// Returns if the skillshot has expired.
         /// </summary>
         public bool IsActive()
         {
             if (SpellData.MissileAccel != 0)
             {
-                return Environment.TickCount <= StartTick + 5000;
-            }
-            if (Target != null)
-            {
-                return Environment.TickCount <=
-                   StartTick + SpellData.Delay + SpellData.ExtraDuration +
-                   1000 * (Start.Distance(Target) / SpellData.MissileSpeed);
+                return Utils.TickCount <= StartTick + 5000;
             }
 
-            return Environment.TickCount <=
+            return Utils.TickCount <=
                    StartTick + SpellData.Delay + SpellData.ExtraDuration +
                    1000 * (Start.Distance(End) / SpellData.MissileSpeed);
+        }
+
+        public bool Evade()
+        {
+            if (ForceDisabled)
+            {
+                return false;
+            }
+
+            if (Utils.TickCount - _cachedValueTick < 100)
+            {
+                return _cachedValue;
+            }
+
+            if (!GetValue<bool>("IsDangerous") && Config.EvadeMenu.Item("OnlyDangerous").GetValue<KeyBind>().Active)
+            {
+                _cachedValue = false;
+                _cachedValueTick = Utils.TickCount;
+                return _cachedValue;
+            }
+
+
+            _cachedValue = GetValue<bool>("Enabled");
+            _cachedValueTick = Utils.TickCount;
+
+            return _cachedValue;
         }
 
         public void Game_OnGameUpdate()
         {
             //Even if it doesnt consume a lot of resources with 20 updatest second works k
             if (SpellData.CollisionObjects.Count() > 0 && SpellData.CollisionObjects != null &&
-                Environment.TickCount - _lastCollisionCalc > 50)
+                Utils.TickCount - _lastCollisionCalc > 50 && Config.EvadeMenu.Item("EnableCollision").GetValue<bool>())
             {
-                _lastCollisionCalc = Environment.TickCount;
+                _lastCollisionCalc = Utils.TickCount;
                 _collisionEnd = Collision.GetCollisionPoint(this);
             }
 
@@ -215,6 +261,49 @@ namespace TahmKench
                     UpdatePolygon();
                 }
             }
+
+            if (SpellData.SpellName == "TaricE")
+            {
+                Start = Unit.ServerPosition.To2D();
+                End = Start + Direction * this.SpellData.Range;
+                Rectangle = new Geometry.Rectangle(Start, End, SpellData.Radius);
+                UpdatePolygon();
+            }
+
+            if (SpellData.SpellName == "SionR")
+            {
+                if (_helperTick == 0)
+                {
+                    _helperTick = StartTick;
+                }
+
+                SpellData.MissileSpeed = (int)Unit.MoveSpeed;
+                if (Unit.IsValidTarget(float.MaxValue, false))
+                {
+                    if (!Unit.HasBuff("SionR") && Utils.TickCount - _helperTick > 600)
+                    {
+                        StartTick = 0;
+                    }
+                    else
+                    {
+                        StartTick = Utils.TickCount - SpellData.Delay;
+                        Start = Unit.ServerPosition.To2D();
+                        End = Unit.ServerPosition.To2D() + 1000 * Unit.Direction.To2D().Perpendicular();
+                        Direction = (End - Start).Normalized();
+                        UpdatePolygon();
+                    }
+                }
+                else
+                {
+                    StartTick = 0;
+                }
+            }
+
+            if (SpellData.FollowCaster)
+            {
+                Circle.Center = Unit.ServerPosition.To2D();
+                UpdatePolygon();
+            }
         }
 
         public void UpdatePolygon()
@@ -223,7 +312,9 @@ namespace TahmKench
             {
                 case SkillShotType.SkillshotCircle:
                     Polygon = Circle.ToPolygon();
-                    EvadePolygon = Circle.ToPolygon(ExtraEvadeDistance);
+                    EvadePolygon = Circle.ToPolygon(Config.ExtraEvadeDistance);
+                    PathFindingPolygon = Circle.ToPolygon(Config.PathFindingDistance);
+                    PathFindingInnerPolygon = Circle.ToPolygon(Config.PathFindingDistance2);
                     DrawingPolygon = Circle.ToPolygon(
                         0,
                         !SpellData.AddHitbox
@@ -237,7 +328,9 @@ namespace TahmKench
                         !SpellData.AddHitbox
                             ? SpellData.Radius
                             : (SpellData.Radius - ObjectManager.Player.BoundingRadius));
-                    EvadePolygon = Rectangle.ToPolygon(ExtraEvadeDistance);
+                    EvadePolygon = Rectangle.ToPolygon(Config.ExtraEvadeDistance);
+                    PathFindingPolygon = Rectangle.ToPolygon(Config.PathFindingDistance);
+                    PathFindingInnerPolygon = Rectangle.ToPolygon(Config.PathFindingDistance2);
                     break;
                 case SkillShotType.SkillshotMissileLine:
                     Polygon = Rectangle.ToPolygon();
@@ -246,48 +339,63 @@ namespace TahmKench
                         !SpellData.AddHitbox
                             ? SpellData.Radius
                             : (SpellData.Radius - ObjectManager.Player.BoundingRadius));
-                    EvadePolygon = Rectangle.ToPolygon(ExtraEvadeDistance);
+                    EvadePolygon = Rectangle.ToPolygon(Config.ExtraEvadeDistance);
+                    PathFindingPolygon = Rectangle.ToPolygon(Config.PathFindingDistance);
+                    PathFindingInnerPolygon = Rectangle.ToPolygon(Config.PathFindingDistance2);
                     break;
                 case SkillShotType.SkillshotCone:
                     Polygon = Sector.ToPolygon();
                     DrawingPolygon = Polygon;
-                    EvadePolygon = Sector.ToPolygon(ExtraEvadeDistance);
+                    EvadePolygon = Sector.ToPolygon(Config.ExtraEvadeDistance);
+                    PathFindingPolygon = Sector.ToPolygon(Config.PathFindingDistance);
+                    PathFindingInnerPolygon = Sector.ToPolygon(Config.PathFindingDistance2);
                     break;
                 case SkillShotType.SkillshotRing:
                     Polygon = Ring.ToPolygon();
                     DrawingPolygon = Polygon;
-                    EvadePolygon = Ring.ToPolygon(ExtraEvadeDistance);
+                    EvadePolygon = Ring.ToPolygon(Config.ExtraEvadeDistance);
+                    PathFindingPolygon = Ring.ToPolygon(Config.PathFindingDistance);
+                    PathFindingInnerPolygon = Ring.ToPolygon(Config.PathFindingDistance2);
+                    break;
+                case SkillShotType.SkillshotArc:
+                    Polygon = Arc.ToPolygon();
+                    DrawingPolygon = Polygon;
+                    EvadePolygon = Arc.ToPolygon(Config.ExtraEvadeDistance);
+                    PathFindingPolygon = Arc.ToPolygon(Config.PathFindingDistance);
+                    PathFindingInnerPolygon = Arc.ToPolygon(Config.PathFindingDistance2);
                     break;
             }
         }
 
         /// <summary>
-        ///     Returns the missile position after time time.
+        /// Returns the missile position after time time.
         /// </summary>
         public Vector2 GlobalGetMissilePosition(int time)
         {
-            var t = Math.Max(0, Environment.TickCount + time - StartTick - SpellData.Delay);
-            var fraction = t * SpellData.MissileSpeed / 0x3e8; // 0x3e8 = 1000
-            t = (int) Math.Max(0, Math.Min(End.Distance(Start), fraction));
+            var t = Math.Max(0, Utils.TickCount + time - StartTick - SpellData.Delay);
+            t = (int) Math.Max(0, Math.Min(End.Distance(Start), t * SpellData.MissileSpeed / 1000));
             return Start + Direction * t;
         }
 
         /// <summary>
-        ///     Returns the missile position after time time.
+        /// Returns the missile position after time time.
         /// </summary>
         public Vector2 GetMissilePosition(int time)
         {
-            var t = Math.Max(0, Environment.TickCount + time - StartTick - SpellData.Delay);
-            int x;
+            var t = Math.Max(0, Utils.TickCount + time - StartTick - SpellData.Delay);
+
+
+            var x = 0;
 
             //Missile with acceleration = 0.
             if (SpellData.MissileAccel == 0)
             {
                 x = t * SpellData.MissileSpeed / 1000;
             }
+
+                //Missile with constant acceleration.
             else
             {
-                //Missile with constant acceleration.
                 var t1 = (SpellData.MissileAccel > 0
                     ? SpellData.MissileMaxSpeed
                     : SpellData.MissileMinSpeed - SpellData.MissileSpeed) * 1000f / SpellData.MissileAccel;
@@ -313,14 +421,16 @@ namespace TahmKench
             return Start + Direction * t;
         }
 
+
         /// <summary>
-        ///     Returns if the skillshot will hit you when trying to blink to the point.
+        /// Returns if the skillshot will hit you when trying to blink to the point.
         /// </summary>
         public bool IsSafeToBlink(Vector2 point, int timeOffset, int delay = 0)
         {
             timeOffset /= 2;
+            var playerPos = ObjectManager.Player.Position.To2D();
 
-            if (IsSafe(ObjectManager.Player.ServerPosition.To2D()))
+            if (IsSafe(playerPos))
             {
                 return true;
             }
@@ -329,7 +439,7 @@ namespace TahmKench
             if (SpellData.Type == SkillShotType.SkillshotMissileLine)
             {
                 var missilePositionAfterBlink = GetMissilePosition(delay + timeOffset);
-                var myPositionProjection = ObjectManager.Player.ServerPosition.To2D().ProjectOn(Start, End);
+                var myPositionProjection = playerPos.ProjectOn(Start, End);
 
                 if (missilePositionAfterBlink.Distance(End) < myPositionProjection.SegmentPoint.Distance(End))
                 {
@@ -342,20 +452,25 @@ namespace TahmKench
             //skillshots without missile
             var timeToExplode = SpellData.ExtraDuration + SpellData.Delay +
                                 (int) (1000 * Start.Distance(End) / SpellData.MissileSpeed) -
-                                (Environment.TickCount - StartTick);
+                                (Utils.TickCount - StartTick);
 
             return timeToExplode > timeOffset + delay;
         }
 
         /// <summary>
-        ///     Returns if the skillshot will hit the unit if the unit follows the path.
+        /// Returns if the skillshot will hit the unit if the unit follows the path.
         /// </summary>
-        public SafePathResult IsSafePath(List<Vector2> path, int timeOffset, int speed = -1, int delay = 0)
+        public SafePathResult IsSafePath(GamePath path, Obj_AI_Base unit,
+            int timeOffset,
+            int speed = -1,
+            int delay = 0)
         {
-            var distance = 0f;
+            var Distance = 0f;
             timeOffset += Game.Ping / 2;
 
-            speed = (speed == -1) ? (int) ObjectManager.Player.MoveSpeed : speed;
+            speed = (speed == -1) ? (int) unit.MoveSpeed : speed;
+
+            
 
             var allIntersections = new List<FoundIntersection>();
             for (var i = 0; i <= path.Count - 2; i++)
@@ -375,8 +490,8 @@ namespace TahmKench
                     {
                         segmentIntersections.Add(
                             new FoundIntersection(
-                                distance + intersection.Point.Distance(from),
-                                (int) ((distance + intersection.Point.Distance(from)) * 1000 / speed),
+                                Distance + intersection.Point.Distance(from),
+                                (int) ((Distance + intersection.Point.Distance(from)) * 1000 / speed),
                                 intersection.Point, from));
                     }
                 }
@@ -384,15 +499,16 @@ namespace TahmKench
                 var sortedList = segmentIntersections.OrderBy(o => o.Distance).ToList();
                 allIntersections.AddRange(sortedList);
 
-                distance += from.Distance(to);
+                Distance += from.Distance(to);
             }
 
             //Skillshot with missile.
             if (SpellData.Type == SkillShotType.SkillshotMissileLine ||
-                SpellData.Type == SkillShotType.SkillshotMissileCone)
+                SpellData.Type == SkillShotType.SkillshotMissileCone ||
+                SpellData.Type == SkillShotType.SkillshotArc)
             {
                 //Outside the skillshot
-                if (IsSafe(ObjectManager.Player.ServerPosition.To2D()))
+                if (IsSafe(ObjectManager.Player.Position.To2D()))
                 {
                     //No intersections -> Safe
                     if (allIntersections.Count == 0)
@@ -400,11 +516,15 @@ namespace TahmKench
                         return new SafePathResult(true, new FoundIntersection());
                     }
 
+                    if (SpellData.DontCross)
+                    {
+                        return new SafePathResult(false, allIntersections[0]);
+                    }
+
                     for (var i = 0; i <= allIntersections.Count - 1; i = i + 2)
                     {
                         var enterIntersection = allIntersections[i];
-                        var enterIntersectionProjection =
-                            enterIntersection.PointVector2.ProjectOn(Start, End).SegmentPoint;
+                        var enterIntersectionProjection = enterIntersection.Point.ProjectOn(Start, End).SegmentPoint;
 
                         //Intersection with no exit point.
                         if (i == allIntersections.Count - 1)
@@ -419,8 +539,7 @@ namespace TahmKench
 
 
                         var exitIntersection = allIntersections[i + 1];
-                        var exitIntersectionProjection =
-                            exitIntersection.PointVector2.ProjectOn(Start, End).SegmentPoint;
+                        var exitIntersectionProjection = exitIntersection.Point.ProjectOn(Start, End).SegmentPoint;
 
                         var missilePosOnEnter = GetMissilePosition(enterIntersection.Time - timeOffset);
                         var missilePosOnExit = GetMissilePosition(exitIntersection.Time + timeOffset);
@@ -437,6 +556,7 @@ namespace TahmKench
 
                     return new SafePathResult(true, allIntersections[0]);
                 }
+
                 //Inside the skillshot.
                 if (allIntersections.Count == 0)
                 {
@@ -447,7 +567,7 @@ namespace TahmKench
                 {
                     //Check only for the exit point
                     var exitIntersection = allIntersections[0];
-                    var exitIntersectionProjection = exitIntersection.PointVector2.ProjectOn(Start, End).SegmentPoint;
+                    var exitIntersectionProjection = exitIntersection.Point.ProjectOn(Start, End).SegmentPoint;
 
                     var missilePosOnExit = GetMissilePosition(exitIntersection.Time + timeOffset);
                     if (missilePosOnExit.Distance(End) <= exitIntersectionProjection.Distance(End))
@@ -458,7 +578,7 @@ namespace TahmKench
             }
 
 
-            if (IsSafe(ObjectManager.Player.ServerPosition.To2D()))
+            if (IsSafe(ObjectManager.Player.Position.To2D()))
             {
                 if (allIntersections.Count == 0)
                 {
@@ -480,8 +600,7 @@ namespace TahmKench
 
             var timeToExplode = (SpellData.DontAddExtraDuration ? 0 : SpellData.ExtraDuration) + SpellData.Delay +
                                 (int) (1000 * Start.Distance(End) / SpellData.MissileSpeed) -
-                                (Environment.TickCount - StartTick);
-
+                                (Utils.TickCount - StartTick);
 
             var myPositionWhenExplodes = path.PositionAfter(timeToExplode, speed, delay);
 
@@ -503,37 +622,6 @@ namespace TahmKench
         public bool IsDanger(Vector2 point)
         {
             return !IsSafe(point);
-        }
-
-        //Returns if the skillshot is about to hit the unit in the next time seconds.
-        public bool IsAboutToHit(int time, Obj_AI_Base unit)
-        {
-            if (SpellData.Type == SkillShotType.SkillshotMissileLine)
-            {
-                var missilePos = GetMissilePosition(0);
-                var missilePosAfterT = GetMissilePosition(time);
-                var projection = unit.ServerPosition.To2D().ProjectOn(missilePos, missilePosAfterT);
-
-                return projection.IsOnSegment &&
-                       projection.SegmentPoint.Distance(unit.ServerPosition) < SpellData.Radius;
-            }
-
-            if (IsSafe(unit.ServerPosition.To2D()))
-            {
-                return false;
-            }
-
-            var timeToExplode = SpellData.ExtraDuration + SpellData.Delay +
-                                (int) ((1000 * Start.Distance(End)) / SpellData.MissileSpeed) -
-                                (Environment.TickCount - StartTick);
-
-            if (Target != null)
-            {
-                timeToExplode = SpellData.ExtraDuration + SpellData.Delay +
-                                (int) ((1000 * Start.Distance(Target)) / SpellData.MissileSpeed) -
-                                (Environment.TickCount - StartTick);
-            }
-            return timeToExplode <= time;
         }
     }
 }

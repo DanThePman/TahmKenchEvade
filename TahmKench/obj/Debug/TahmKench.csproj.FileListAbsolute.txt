@@ -1,1 +1,16 @@
 C:\Users\Daniel\Documents\Visual Studio 2013\Projects\TahmKench\TahmKench\bin\Release\TahmKench.exe.config
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\TahmKench.exe.config
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\TahmKench.exe
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\TahmKench.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\clipper_library.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\LeagueSharp.Common.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\LeagueSharp.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\SharpDX.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\SharpDX.Direct3D9.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\LeagueSharp.Data.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\Newtonsoft.Json.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\clipper_library.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\LeagueSharp.Common.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Release\LeagueSharp.Data.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\Debug\TahmKench.exe
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\Debug\TahmKench.pdb

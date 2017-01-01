@@ -1,0 +1,16 @@
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\TahmKench.exe.config
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\TahmKench.exe
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\TahmKench.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\clipper_library.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\LeagueSharp.Common.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\LeagueSharp.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\SharpDX.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\SharpDX.Direct3D9.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\LeagueSharp.Data.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\clipper_library.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\LeagueSharp.Common.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\bin\Debug\LeagueSharp.Data.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\x86\Debug\TahmKench.csprojResolveAssemblyReference.cache
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\x86\Debug\TahmKench.exe
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\TahmKenchEvade\TahmKench\obj\x86\Debug\TahmKench.pdb

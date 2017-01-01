@@ -1,4 +1,4 @@
-﻿﻿// Copyright 2014 - 2015 Esk0r
+﻿// Copyright 2014 - 2014 Esk0r
 // SpellData.cs is part of Evade.
 // 
 // Evade is free software: you can redistribute it and/or modify
@@ -14,9 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Evade. If not, see <http://www.gnu.org/licenses/>.
 
+#region
+
 using LeagueSharp;
 
-namespace TahmKench
+#endregion
+
+namespace Evade
 {
     public class SpellData
     {
@@ -27,6 +31,7 @@ namespace TahmKench
         public CollisionObjectTypes[] CollisionObjects = { };
         public int DangerValue;
         public int Delay;
+        public bool DisabledByDefault = false;
         public bool DisableFowDetection = false;
         public bool DontAddExtraDuration;
         public bool DontCheckForDuplicates = false;
@@ -38,11 +43,11 @@ namespace TahmKench
         public string[] ExtraSpellNames = { };
         public bool FixedRange;
         public bool ForceRemove = false;
+        public bool FollowCaster = false;
         public string FromObject = "";
         public string[] FromObjects = { };
         public int Id = -1;
         public bool Invert;
-        public bool Targeted;
         public bool IsDangerous = false;
         public int MissileAccel = 0;
         public bool MissileDelayed;
@@ -50,21 +55,21 @@ namespace TahmKench
         public int MissileMaxSpeed;
         public int MissileMinSpeed;
         public int MissileSpeed;
-        public string ProjectileParticleName = "";
         public string MissileSpellName = "";
+        public EarlyObjects[] EarlyEvade;
         public float MultipleAngle;
         public int MultipleNumber = -1;
         public int RingRadius;
+        public string SourceObjectName = "";
         public SpellSlot Slot;
         public string SpellName;
+        public bool TakeClosestPath = false;
         public string ToggleParticleName = "";
         public SkillShotType Type;
         private int _radius;
         private int _range;
-
-        public SpellData()
-        {
-        }
+        
+        public SpellData() { }
 
         public SpellData(string championName,
             string spellName,
@@ -101,8 +106,8 @@ namespace TahmKench
             get
             {
                 return (!AddHitbox)
-                    ? _radius
-                    : _radius + (int)ObjectManager.Player.BoundingRadius;
+                    ? _radius + Config.SkillShotsExtraRadius
+                    : Config.SkillShotsExtraRadius + _radius + (int) ObjectManager.Player.BoundingRadius;
             }
             set { _radius = value; }
         }
@@ -119,7 +124,13 @@ namespace TahmKench
 
         public int Range
         {
-            get { return _range; }
+            get
+            {
+                return _range +
+                       ((Type == SkillShotType.SkillshotLine || Type == SkillShotType.SkillshotMissileLine)
+                           ? Config.SkillShotsExtraRange
+                           : 0);
+            }
             set { _range = value; }
         }
     }
